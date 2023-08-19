@@ -56,20 +56,28 @@ openai.api_key_path = API_KEY_PATH
 
 # Global variables and prompt
 prompt = f"""
-Please translate the following text from {SOURCE_LANGUAGE} to {TARGET_LANGUAGE}.
-Sentences are provided as a list of quoted sentences. Please translate each
-sentence individually and return a list of quoted translations. The token
-<NEWLINE> represents a newline character and should be transcribed verbatim. 
-This list will be read in using Python's eval() method, so please escape any
-special characters you use, consistent with Python. You
-can change the translations to sound more natural if you like, but please make
-sure that the meaning is preserved exactly. You may add or remove sentences, but
-please make sure that the output array is the same length as the input array. So
-for instance, if you split a sentence into two sentences during translation,
-these sentences should be returned as a single element of the output array, and
-conversely if you combine two sentences, please still break the output into two
-elements. Please do not change the order of the sentences, as the translations
-will be interleaved with the original sentences in post-processing.
+You are being called as part of a translation pipeline. Here is a description of
+your task:
+1. You are translating {SOURCE_LANGUAGE} to {TARGET_LANGUAGE}.
+2. Your inputs are lists of sentences in {SOURCE_LANGUAGE}. They are formatted
+as JSON/Python lists: for instance ['foo', 'bar'].
+3. Your outputs should be lists of sentences in {TARGET_LANGUAGE}, formatted
+analagously to the inputs: for instance ['baz', 'qux'].
+4. Your outputs will be read in using Python's eval() method, so please escape
+any special characters you use, consistent with Python.
+5. Please ensure that you output a list with the same number of elements as the
+input, and that each element of the output is a translation of the corresponding
+element of the input.
+6. You may break up or combine sentences as you see fit, but please try to
+match the inputs: for instance, if you split a sentence into two sentences
+during translation, these sentences should be returned as a single element of
+the output array, and conversely if you combine two sentences, please still
+break the output into two elements.
+7. If you encounter the token <NEWLINE>, please return it verbatim.
+8. Please do not change the order of the sentences, as the translations will be
+interleaved with the original sentences in post-processing.
+9. Please ensure that names and other transliterated words are spelled
+consistently across sentences.
 """
 
 # Parse command line arguments
@@ -150,10 +158,10 @@ with open(outfile, "w") as f:
                 )
             for og, tr in zip(chunk, translations):
                 if og == tr == "<NEWLINE>":
-                    print("\n", file=f)
+                    print("---", file=f)
                 else:
                     print(f"{og}\n{tr}\n", file=f)
         except:
             print("##### FALLBACK #####", file=f)
-            print(f"{chunk}\n{response}\n\n", file=f)
+            print(f"{chunk}\n{response}", file=f)
             print("##### END FALLBACK #####", file=f)
