@@ -1,6 +1,7 @@
 import sys
 import re
 import argparse
+import json
 import docx
 import openai
 from transformers import GPT2TokenizerFast
@@ -63,8 +64,8 @@ your task:
 as JSON/Python lists: for instance ['foo', 'bar'].
 3. Your outputs should be lists of sentences in {TARGET_LANGUAGE}, formatted
 analagously to the inputs: for instance ['baz', 'qux'].
-4. Your outputs will be read in using Python's eval() method, so please escape
-any special characters you use, consistent with Python.
+4. Your outputs will be read in using Python's json.loads() method, so please 
+ensure that your outputs are valid JSON.
 5. Please ensure that you output a list with the same number of elements as the
 input, and that each element of the output is a translation of the corresponding
 element of the input.
@@ -150,7 +151,7 @@ for chunk in chunks:
 with open(outfile, "w") as f:
     for i, (chunk, response) in enumerate(zip(chunks, responses)):
         try:
-            translations = eval(response)  # Get a list
+            translations = json.loads(response)  # Get a list
             if len(chunk) != len(translations):
                 print(
                     f"WARNING: Chunk {i} has {len(chunk)} sentences but translation has {len(translations)} sentences.",
@@ -159,9 +160,14 @@ with open(outfile, "w") as f:
             for og, tr in zip(chunk, translations):
                 if og == tr == "<NEWLINE>":
                     print("---", file=f)
+                elif og == "<NEWLINE>" or tr == "<NEWLINE>":
+                    print(
+                        f"WARNING: Newline mismatch at chunk {i}, trigger fallback."
+                    )
+                    raise Exception("Newline mismatch")
                 else:
-                    print(f"{og}\n{tr}\n", file=f)
+                    print(f"{tr}\n{og}\n", file=f)
         except:
             print("##### FALLBACK #####", file=f)
-            print(f"{chunk}\n{response}", file=f)
+            print(f"{response}\n{chunk}", file=f)
             print("##### END FALLBACK #####", file=f)
